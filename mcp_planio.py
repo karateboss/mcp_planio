@@ -39,6 +39,30 @@ async def get_assigned_issues() -> list[dict]:
 
         return results
 
+@mcp.tool(name="get_issue_details", description="Retrieve the full body and metadata of a specific Redmine issue by ID")
+async def get_issue_details(issue_id: int) -> dict:
+    """
+    Fetches the full description and metadata of a single issue by its ID.
+    """
+    url = f"{REDMINE_URL}/issues/{issue_id}.json?include=journals"
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, headers=HEADERS)
+        response.raise_for_status()
+        issue = response.json().get("issue", {})
+
+        return {
+            "id": issue.get("id"),
+            "subject": issue.get("subject"),
+            "description": issue.get("description"),
+            "status": issue.get("status", {}).get("name"),
+            "priority": issue.get("priority", {}).get("name"),
+            "project": issue.get("project", {}).get("name"),
+            "author": issue.get("author", {}).get("name"),
+            "created_on": issue.get("created_on"),
+            "updated_on": issue.get("updated_on")
+        }
+
 # Run the MCP server
 def main():
     mcp.run()
