@@ -45,6 +45,9 @@ async def get_assigned_issues(ctx: Context) -> list[dict]:
         return []
 
 
-# Run the FastMCP server
-if __name__ == "__main__":
+# Run the MCP server
+def main():
     mcp.run()
+
+if __name__ == "__main__":
+    main()
