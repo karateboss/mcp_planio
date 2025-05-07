@@ -14,6 +14,39 @@ HEADERS = {
     "Content-Type": "application/json"
 }
 
+@mcp.tool(name="search_issues_by_assignee", description="Search Redmine issues assigned to a specific user")
+async def search_issues_by_assignee(username: str) -> list[dict]:
+    """
+    Finds the Redmine user by username, then returns issues assigned to them.
+    """
+    async with httpx.AsyncClient() as client:
+        # Step 1: Get list of users
+        users_url = f"{REDMINE_URL}/users.json?name={username}"
+        user_resp = await client.get(users_url, headers=HEADERS)
+        user_resp.raise_for_status()
+        users = user_resp.json().get("users", [])
+
+        if not users:
+            return [{"error": f"No Plan.IO user found with username '{username}'"}]
+
+        user_id = users[0]["id"]
+
+        # Step 2: Get issues assigned to that user
+        issues_url = f"{REDMINE_URL}/issues.json?assigned_to_id={user_id}&status_id=*"
+        issue_resp = await client.get(issues_url, headers=HEADERS)
+        issue_resp.raise_for_status()
+        issues = issue_resp.json().get("issues", [])
+
+        return [
+            {
+                "id": i["id"],
+                "subject": i["subject"],
+                "status": i["status"]["name"],
+                "project": i["project"]["name"],
+                "created_on": i["created_on"]
+            }
+            for i in issues
+        ]
 
 @mcp.tool(name="get_assigned_issues", description="Retrieve issues assigned to the authenticated user")
 async def get_assigned_issues() -> list[dict]:
