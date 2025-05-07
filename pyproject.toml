@@ -7,10 +7,10 @@ authors = [
 ]
 readme = "README.md"
 requires-python = ">=3.8"
-dependencies = ["pymupdf", "mcp"]
+dependencies = ["httpx", "mcp"]
 
 [project.scripts]
-mcp_pdf_reader = "mcp_planio:main"
+mcp_planio = "mcp_planio:main"
 
 [build-system]
 requires = ["hatchling"]
