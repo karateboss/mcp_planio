@@ -1,4 +1,4 @@
-from fastmcp import FastMCP, Context
+from mcp.server.fastmcp import FastMCP
 import httpx
 import os
 
