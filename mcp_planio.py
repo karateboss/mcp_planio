@@ -1,5 +1,4 @@
 from mcp.server.fastmcp import FastMCP
-from mcp.server.context import Context
 import httpx
 import os
 
@@ -17,34 +16,28 @@ HEADERS = {
 
 
 @mcp.tool(name="get_assigned_issues", description="Retrieve issues assigned to the authenticated user")
-async def get_assigned_issues(ctx: Context) -> list[dict]:
+async def get_assigned_issues() -> list[dict]:
     """
     Fetches all Redmine issues assigned to the authenticated user.
     """
     url = f"{REDMINE_URL}/issues.json?assigned_to_id=me&status_id=*"
 
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=HEADERS)
-            response.raise_for_status()
-            issues = response.json().get("issues", [])
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, headers=HEADERS)
+        response.raise_for_status()
+        issues = response.json().get("issues", [])
 
-            results = []
-            for issue in issues:
-                results.append({
-                    "id": issue["id"],
-                    "subject": issue["subject"],
-                    "status": issue["status"]["name"],
-                    "project": issue["project"]["name"],
-                    "created_on": issue["created_on"]
-                })
+        results = []
+        for issue in issues:
+            results.append({
+                "id": issue["id"],
+                "subject": issue["subject"],
+                "status": issue["status"]["name"],
+                "project": issue["project"]["name"],
+                "created_on": issue["created_on"]
+            })
 
-            return results
-
-    except Exception as e:
-        await ctx.error(f"Error fetching issues: {str(e)}")
-        return []
-
+        return results
 
 # Run the MCP server
 def main():
