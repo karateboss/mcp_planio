@@ -113,6 +113,30 @@ async def search_issues_by_keyword(keyword: str) -> list[dict]:
             }
             for i in issues
         ]
+        
+@mcp.tool(
+    name="get_issue_hours_booked",
+    description="Retrieve the total number of hours booked to a Redmine issue"
+)
+async def get_issue_hours_booked(issue_id: int) -> dict:
+    """
+    Retrieves and sums time entries for a given issue ID.
+    """
+    url = f"{REDMINE_URL}/time_entries.json?issue_id={issue_id}&limit=100"
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, headers=HEADERS)
+        response.raise_for_status()
+        entries = response.json().get("time_entries", [])
+
+        total_hours = sum(entry.get("hours", 0) for entry in entries)
+
+        return {
+            "issue_id": issue_id,
+            "total_hours": total_hours,
+            "entries_count": len(entries)
+        }
+
 
 # Run the MCP server
 def main():
