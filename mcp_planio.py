@@ -88,6 +88,32 @@ async def get_issue_details(issue_id: int) -> dict:
             "updated_on": issue.get("updated_on")
         }
 
+@mcp.tool(name="search_issues_by_keyword", description="Search for issues across all projects using a keyword")
+async def search_issues_by_keyword(keyword: str) -> list[dict]:
+    """
+    Performs a full-text search across all accessible issues in all projects.
+    """
+    search_url = f"{REDMINE_URL}/search.json?q={keyword}&scope=all&all_words=1&issues=1"
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(search_url, headers=HEADERS)
+        response.raise_for_status()
+        results = response.json().get("results", [])
+
+        # Filter only "issue" results (Redmine returns wiki, docs, etc. too)
+        issues = [r for r in results if r.get("type") == "issue"]
+
+        return [
+            {
+                "id": i["id"],
+                "title": i["title"],
+                "description": i.get("description", ""),
+                "url": i["url"],
+                "project": i.get("project", {}).get("name")
+            }
+            for i in issues
+        ]
+
 # Run the MCP server
 def main():
     mcp.run()
