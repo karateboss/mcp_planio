@@ -40,17 +40,19 @@ Add the following to your `claude_desktop_config.json`:
 
 ```json
 {
-		"mcp_planio": {
-			"command": "uvx",
-			"args": [
-				"--from",
-				"git+https://github.com/karateboss/mcp_planio@main",
-				"mcp_planio"
-			],
-			"env": {
-				"REDMINE_URL": "https://<your plan.io>",
-				"REDMINE_API_KEY": "<your api key>"
-			}
+    "mcpServers": {
+        "mcp_planio": {
+            "command": "uvx",
+            "args": [
+                "--from",
+                "git+https://github.com/karateboss/mcp_planio@main",
+                "mcp_planio"
+            ],
+            "env": {
+                "REDMINE_URL": "https://<your plan.io>",
+                "REDMINE_API_KEY": "<your api key>"
+	    }
+        }
     }
 }
 ```
