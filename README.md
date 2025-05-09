@@ -1,4 +1,4 @@
-# MCP Enabled PDF Reader
+# MCP Enabled Plan.IO (Redmine) Reader
 Model Context Protocol (MCP) server exposes a set of tools to read and search plan.io issues. This has been tested on Claude Desktop. 
 
 ## Installation
