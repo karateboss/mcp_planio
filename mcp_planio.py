@@ -14,8 +14,18 @@ HEADERS = {
     "Content-Type": "application/json"
 }
 
-@mcp.tool(name="search_issues_by_assignee", description="Search Redmine issues assigned to a user by login or ID")
-async def search_issues_by_assignee(username: str = "", user_id: int = None) -> list[dict]:
+from datetime import datetime
+
+@mcp.tool(
+    name="search_issues_by_assignee",
+    description="Search Redmine issues assigned to a user by login or ID, optionally filtered by a time span"
+)
+async def search_issues_by_assignee(
+    username: str = "",
+    user_id: int = None,
+    start_time: str = None,  # Format: 'YYYY-MM-DD'
+    end_time: str = None     # Format: 'YYYY-MM-DD'
+) -> list[dict]:
     async with httpx.AsyncClient() as client:
         if user_id is None:
             users_url = f"{REDMINE_URL}/users.json?name={username}"
@@ -26,7 +36,19 @@ async def search_issues_by_assignee(username: str = "", user_id: int = None) -> 
                 return [{"error": f"No user found for '{username}'"}]
             user_id = users[0]["id"]
 
+        # Base issues URL
         issues_url = f"{REDMINE_URL}/issues.json?assigned_to_id={user_id}&status_id=*"
+
+        # Add time filtering if provided
+        if start_time and end_time:
+            # Validate and format
+            try:
+                datetime.strptime(start_time, "%Y-%m-%d")
+                datetime.strptime(end_time, "%Y-%m-%d")
+                issues_url += f"&created_on=%3E%3C{start_time}|{end_time}"
+            except ValueError:
+                return [{"error": "Invalid date format. Use YYYY-MM-DD."}]
+
         issue_resp = await client.get(issues_url, headers=HEADERS)
         issue_resp.raise_for_status()
         issues = issue_resp.json().get("issues", [])
