@@ -67,15 +67,58 @@ async def get_assigned_issues() -> list[dict]:
 @mcp.tool(name="get_issue_details", description="Retrieve the full body and metadata of a specific Redmine issue by ID")
 async def get_issue_details(issue_id: int) -> dict:
     """
-    Fetches the full description and metadata of a single issue by its ID.
+    Fetches the full description, metadata, and all comments/journals of a single issue by its ID.
     """
-    url = f"{REDMINE_URL}/issues/{issue_id}.json?include=journals"
-
+    url = f"{REDMINE_URL}/issues/{issue_id}.json?include=journals,relations,attachments,watchers,children"
     async with httpx.AsyncClient() as client:
         response = await client.get(url, headers=HEADERS)
         response.raise_for_status()
         issue = response.json().get("issue", {})
-
+        
+        # Extract journals (comments and updates)
+        journals = []
+        for journal in issue.get("journals", []):
+            journal_data = {
+                "id": journal.get("id"),
+                "user": journal.get("user", {}).get("name"),
+                "created_on": journal.get("created_on"),
+                "notes": journal.get("notes", ""),
+                "details": journal.get("details", [])
+            }
+            journals.append(journal_data)
+        
+        # Extract attachments
+        attachments = []
+        for attachment in issue.get("attachments", []):
+            attachment_data = {
+                "id": attachment.get("id"),
+                "filename": attachment.get("filename"),
+                "filesize": attachment.get("filesize"),
+                "content_type": attachment.get("content_type"),
+                "author": attachment.get("author", {}).get("name"),
+                "created_on": attachment.get("created_on"),
+                "description": attachment.get("description", "")
+            }
+            attachments.append(attachment_data)
+        
+        # Extract custom fields
+        custom_fields = {}
+        for field in issue.get("custom_fields", []):
+            custom_fields[field.get("name")] = field.get("value")
+        
+        # Extract related issues
+        relations = []
+        for relation in issue.get("relations", []):
+            relation_data = {
+                "id": relation.get("id"),
+                "issue_id": relation.get("issue_id"),
+                "issue_to_id": relation.get("issue_to_id"),
+                "relation_type": relation.get("relation_type"),
+                "delay": relation.get("delay")
+            }
+            relations.append(relation_data)
+        
+        # Build comprehensive issue data
         return {
             "id": issue.get("id"),
             "subject": issue.get("subject"),
@@ -83,9 +126,26 @@ async def get_issue_details(issue_id: int) -> dict:
             "status": issue.get("status", {}).get("name"),
             "priority": issue.get("priority", {}).get("name"),
             "project": issue.get("project", {}).get("name"),
+            "tracker": issue.get("tracker", {}).get("name"),
             "author": issue.get("author", {}).get("name"),
+            "assigned_to": issue.get("assigned_to", {}).get("name") if "assigned_to" in issue else None,
+            "category": issue.get("category", {}).get("name") if "category" in issue else None,
+            "fixed_version": issue.get("fixed_version", {}).get("name") if "fixed_version" in issue else None,
+            "parent": issue.get("parent", {}).get("id") if "parent" in issue else None,
+            "start_date": issue.get("start_date"),
+            "due_date": issue.get("due_date"),
+            "done_ratio": issue.get("done_ratio"),
+            "estimated_hours": issue.get("estimated_hours"),
+            "spent_hours": issue.get("spent_hours"),
             "created_on": issue.get("created_on"),
-            "updated_on": issue.get("updated_on")
+            "updated_on": issue.get("updated_on"),
+            "closed_on": issue.get("closed_on"),
+            "journals": journals,
+            "attachments": attachments,
+            "custom_fields": custom_fields,
+            "relations": relations,
+            "watchers": issue.get("watchers", []),
+            "children": issue.get("children", [])
         }
 
 @mcp.tool(name="search_issues_by_keyword", description="Search for issues across all projects using a keyword")
