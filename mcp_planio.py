@@ -170,31 +170,49 @@ async def get_issue_details(issue_id: int) -> dict:
             "children": issue.get("children", [])
         }
 
-@mcp.tool(name="search_issues_by_keyword", description="Search for issues across all projects using a keyword")
+@mcp.tool(
+    name="search_issues_by_keyword",
+    description="Search for issues across all projects using a keyword (paginated to retrieve all matches)"
+)
 async def search_issues_by_keyword(keyword: str) -> list[dict]:
     """
-    Performs a full-text search across all accessible issues in all projects.
+    Performs a full-text search across all accessible issues in all projects, handling pagination.
     """
-    search_url = f"{REDMINE_URL}/search.json?q={keyword}&scope=all&all_words=1&issues=1"
+    base_url = f"{REDMINE_URL}/search.json"
+    offset = 0
+    limit = 100
+    issues = []
 
     async with httpx.AsyncClient() as client:
-        response = await client.get(search_url, headers=HEADERS)
-        response.raise_for_status()
-        results = response.json().get("results", [])
+        while True:
+            search_url = (
+                f"{base_url}?q={keyword}&scope=all&all_words=1&issues=1"
+                f"&offset={offset}&limit={limit}"
+            )
+            response = await client.get(search_url, headers=HEADERS)
+            response.raise_for_status()
+            data = response.json()
 
-        # Filter only "issue" results (Redmine returns wiki, docs, etc. too)
-        issues = [r for r in results if r.get("type") == "issue"]
+            # Filter only "issue" results
+            results = [r for r in data.get("results", []) if r.get("type") == "issue"]
+            issues.extend([
+                {
+                    "id": i["id"],
+                    "title": i["title"],
+                    "description": i.get("description", ""),
+                    "url": i["url"],
+                    "project": i.get("project", {}).get("name")
+                }
+                for i in results
+            ])
 
-        return [
-            {
-                "id": i["id"],
-                "title": i["title"],
-                "description": i.get("description", ""),
-                "url": i["url"],
-                "project": i.get("project", {}).get("name")
-            }
-            for i in issues
-        ]
+            total_count = data.get("total_count", 0)
+            offset += limit
+            if offset >= total_count:
+                break
+
+    return issues
+
         
 @mcp.tool(
     name="get_issue_hours_booked",
