@@ -213,6 +213,66 @@ async def search_issues_by_keyword(keyword: str) -> list[dict]:
 
     return issues
 
+@mcp.tool(
+    name="get_issues_by_tracker",
+    description="Retrieve issues filtered by tracker name and optionally by project ID or name"
+)
+async def get_issues_by_tracker(
+    tracker_name: str,
+    project_id: int = None,
+    project_name: str = None
+) -> list[dict]:
+    """
+    Retrieves all issues with the given tracker name, optionally within a specific project.
+    """
+    # Step 1: Fetch all trackers to resolve the tracker ID
+    async with httpx.AsyncClient() as client:
+        trackers_url = f"{REDMINE_URL}/trackers.json"
+        tracker_resp = await client.get(trackers_url, headers=HEADERS)
+        tracker_resp.raise_for_status()
+        trackers = tracker_resp.json().get("trackers", [])
+        tracker = next((t for t in trackers if t["name"].lower() == tracker_name.lower()), None)
+        if not tracker:
+            return [{"error": f"No tracker found with name '{tracker_name}'"}]
+
+        tracker_id = tracker["id"]
+
+        # Base issues URL with optional project scoping
+        issues_url = f"{REDMINE_URL}/issues.json?tracker_id={tracker_id}&status_id=*"
+        if project_id:
+            issues_url += f"&project_id={project_id}"
+        elif project_name:
+            issues_url += f"&project={project_name}"
+
+        # Pagination setup
+        limit = 100
+        offset = 0
+        all_issues = []
+
+        while True:
+            paginated_url = f"{issues_url}&limit={limit}&offset={offset}"
+            issues_resp = await client.get(paginated_url, headers=HEADERS)
+            issues_resp.raise_for_status()
+            data = issues_resp.json()
+            issues = data.get("issues", [])
+            all_issues.extend([
+                {
+                    "id": i["id"],
+                    "subject": i["subject"],
+                    "status": i["status"]["name"],
+                    "project": i["project"]["name"],
+                    "created_on": i["created_on"]
+                }
+                for i in issues
+            ])
+
+            total_count = data.get("total_count", 0)
+            offset += limit
+            if offset >= total_count:
+                break
+
+        return all_issues
+
         
 @mcp.tool(
     name="get_issue_hours_booked",
